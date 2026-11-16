@@ -1,0 +1,67 @@
+name: Build 3DS
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: devkitpro/devkitarm:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install 3DS libraries and helpers
+        run: |
+          dkp-pacman -Syu --noconfirm || true
+          dkp-pacman -S --noconfirm 3ds-dev
+          apt-get update
+          apt-get install -y python3 git build-essential
+
+      - name: Create placeholder icon, banner and banner audio (skipped if you add your own in assets/)
+        run: |
+          mkdir -p assets
+          python3 - <<'PY'
+          import struct,zlib,wave,os
+          def png(path,w,h,fn):
+              raw=b''.join(b'\x00'+b''.join(bytes(fn(x,y))+b'\xff' for x in range(w)) for y in range(h))
+              def ch(t,d):
+                  c=struct.pack('>I',len(d))+t+d
+                  return c+struct.pack('>I',zlib.crc32(t+d)&0xffffffff)
+              open(path,'wb').write(b'\x89PNG\r\n\x1a\n'+ch(b'IHDR',struct.pack('>IIBBBBB',w,h,8,6,0,0,0))+ch(b'IDAT',zlib.compress(raw))+ch(b'IEND',b''))
+          def banner(x,y):
+              v=int(14+8*y/128)
+              if 96<x<160 and 30<y<98: return (176,24,24) if (x-128)**2+(y-60)**2<900 else (20,20,24)
+              return (v,v,v+6)
+          def icon(x,y):
+              return (176,24,24) if (x-24)**2+(y-24)**2<300 else (14,14,20)
+          if not os.path.exists('assets/banner.png'): png('assets/banner.png',256,128,banner)
+          if not os.path.exists('assets/icon.png'): png('assets/icon.png',48,48,icon)
+          if not os.path.exists('assets/audio.wav'):
+              w=wave.open('assets/audio.wav','wb');w.setnchannels(2);w.setsampwidth(2);w.setframerate(32728)
+              w.writeframes(b'\x00\x00\x00\x00'*32728*2);w.close()
+          PY
+
+      - name: Build .3dsx
+        run: make
+
+      - name: Build makerom and bannertool (needed for .cia)
+        continue-on-error: true
+        run: |
+          git clone --depth 1 https://github.com/3DSGuy/Project_CTR.git
+          (cd Project_CTR/makerom && make deps -j4 && make -j4)
+          cp "$(find Project_CTR/makerom -name makerom -type f | head -1)" /usr/local/bin/makerom
+          git clone --recursive --depth 1 https://github.com/Steveice10/bannertool.git
+          (cd bannertool && make -j4)
+          cp "$(find bannertool/output -name bannertool -type f | head -1)" /usr/local/bin/bannertool
+
+      - name: Build .cia
+        continue-on-error: true
+        run: make cia
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: project-hollow-3ds
+          path: |
+            project_hollow.3dsx
+            project_hollow.cia
+          if-no-files-found: warn
