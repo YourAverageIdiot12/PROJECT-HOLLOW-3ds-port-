@@ -1,0 +1,110 @@
+BasicInfo:
+  Title                   : ProjectHollow
+  CompanyCode             : "00"
+  ProductCode             : CTR-P-HOLW
+  ContentType             : Application
+  Logo                    : Nintendo
+
+TitleInfo:
+  Category                : Application
+  UniqueId                : 0xF8B01
+
+Option:
+  UseOnSD                 : true
+  FreeProductCode         : true
+  MediaFootPadding        : false
+  EnableCrypt             : false
+  EnableCompress          : true
+
+AccessControlInfo:
+  CoreVersion             : 2
+  DescVersion             : 2
+  ReleaseKernelMajor      : "02"
+  ReleaseKernelMinor      : "33"
+  UseExtSaveData          : false
+  FileSystemAccess:
+   - DirectSdmc
+  IdealProcessor          : 0
+  AffinityMask            : 1
+  Priority                : 16
+  MaxCpu                  : 0x9E
+  MemoryType              : Application
+  SystemMode              : 64MB
+  CpuSpeed                : 268MHz
+  EnableL2Cache           : false
+  CanAccessCore2          : true
+  HandleTableSize         : 0x200
+  DisableDebug            : false
+  EnableForceDebug        : false
+  CanWriteSharedPage      : true
+  CanUsePrivilegedPriority: false
+  CanUseNonAlphabetAndNumber: true
+  PermitMainFunctionArgument: true
+  CanShareDeviceMemory    : true
+  RunnableOnSleep         : false
+  SpecialMemoryArrange    : true
+  IORegisterMapping:
+   - 1ff50000-1ff57fff
+   - 1ff70000-1ff77fff
+  MemoryMapping:
+   - 1f000000-1f5fffff:r
+  SystemCallAccessControl:
+   - ControlMemory
+   - QueryMemory
+   - ExitProcess
+   - GetProcessAffinityMask
+   - SetProcessAffinityMask
+   - GetProcessIdealProcessor
+   - SetProcessIdealProcessor
+   - CreateThread
+   - ExitThread
+   - SleepThread
+   - GetThreadPriority
+   - SetThreadPriority
+   - GetThreadAffinityMask
+   - SetThreadAffinityMask
+   - GetThreadIdealProcessor
+   - SetThreadIdealProcessor
+   - GetCurrentProcessorNumber
+   - Run
+   - CreateMutex
+   - ReleaseMutex
+   - CreateSemaphore
+   - ReleaseSemaphore
+   - CreateEvent
+   - SignalEvent
+   - ClearEvent
+   - WaitSynchronization1
+   - WaitSynchronizationN
+   - CreateAddressArbiter
+   - ArbitrateAddress
+   - CloseHandle
+   - DuplicateHandle
+   - GetSystemTick
+   - GetHandleInfo
+   - GetSystemInfo
+   - GetProcessInfo
+   - GetThreadInfo
+   - ConnectToPort
+   - SendSyncRequest
+   - GetProcessId
+   - GetThreadId
+   - GetResourceLimit
+   - GetResourceLimitLimitValues
+   - GetResourceLimitCurrentValues
+   - Break
+   - OutputDebugString
+  ServiceAccessControl:
+   - APT:U
+   - $hioFIO
+   - $hostio0
+   - $hostio1
+   - ac:u
+   - cfg:u
+   - dsp::DSP
+   - fs:USER
+   - gsp::Gpu
+   - gsp::Lcd
+   - hid:USER
+   - ptm:u
+   - y2
