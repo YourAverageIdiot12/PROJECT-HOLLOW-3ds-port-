@@ -57,9 +57,8 @@ jobs:
           echo "makerom: $MK"
           curl -fsSL -o mk.zip "$MK" && unzip -o mk.zip -d mk
           cp "$(find mk -name makerom -type f | head -1)" /usr/local/bin/makerom
-          BT=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/Steveice10/bannertool/releases/latest | pick "x['name'].endswith('.zip')")
-          echo "bannertool: $BT"
-          curl -fsSL -o bt.zip "$BT" && unzip -o bt.zip -d bt
+          curl -fsSL -o bt.zip https://github.com/diasurgical/bannertool/releases/download/v1.2.0/bannertool.zip || curl -fsSL -o bt.zip "$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/diasurgical/bannertool/releases/latest | pick "x['name'].endswith('.zip')")"
+          unzip -o bt.zip -d bt
           cp "$(find bt -path '*linux*' -name bannertool -type f | head -1)" /usr/local/bin/bannertool
           chmod +x /usr/local/bin/makerom /usr/local/bin/bannertool
           makerom -version || true
