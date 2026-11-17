@@ -3,6 +3,9 @@ on:
   push:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -15,7 +18,7 @@ jobs:
           dkp-pacman -Syu --noconfirm || true
           dkp-pacman -S --noconfirm 3ds-dev
           apt-get update
-          apt-get install -y python3 git build-essential
+          apt-get install -y python3 curl unzip git
 
       - name: Create placeholder icon, banner and banner audio (skipped if you add your own in assets/)
         run: |
@@ -44,18 +47,24 @@ jobs:
       - name: Build .3dsx
         run: make
 
-      - name: Build makerom and bannertool (needed for .cia)
-        continue-on-error: true
+      - name: Download makerom and bannertool (prebuilt)
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git clone --depth 1 https://github.com/3DSGuy/Project_CTR.git
-          (cd Project_CTR/makerom && make deps -j4 && make -j4)
-          cp "$(find Project_CTR/makerom -name makerom -type f | head -1)" /usr/local/bin/makerom
-          git clone --recursive --depth 1 https://github.com/Steveice10/bannertool.git
-          (cd bannertool && make -j4)
-          cp "$(find bannertool/output -name bannertool -type f | head -1)" /usr/local/bin/bannertool
+          set -e
+          pick() { python3 -c "import sys,json;a=json.load(sys.stdin)['assets'];print(next(x['browser_download_url'] for x in a if $1))"; }
+          MK=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/3DSGuy/Project_CTR/releases/latest | pick "'ubuntu' in x['name'].lower() and 'x86_64' in x['name'].lower()")
+          echo "makerom: $MK"
+          curl -fsSL -o mk.zip "$MK" && unzip -o mk.zip -d mk
+          cp "$(find mk -name makerom -type f | head -1)" /usr/local/bin/makerom
+          BT=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/Steveice10/bannertool/releases/latest | pick "x['name'].endswith('.zip')")
+          echo "bannertool: $BT"
+          curl -fsSL -o bt.zip "$BT" && unzip -o bt.zip -d bt
+          cp "$(find bt -path '*linux*' -name bannertool -type f | head -1)" /usr/local/bin/bannertool
+          chmod +x /usr/local/bin/makerom /usr/local/bin/bannertool
+          makerom -version || true
 
       - name: Build .cia
-        continue-on-error: true
         run: make cia
 
       - uses: actions/upload-artifact@v4
@@ -64,4 +73,12 @@ jobs:
           path: |
             project_hollow.3dsx
             project_hollow.cia
-          if-no-files-found: warn
+
+      - name: Publish release (gives you a direct download link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Project Hollow (latest build)
+          files: |
+            project_hollow.3dsx
+            project_hollow.cia
