@@ -77,7 +77,15 @@ jobs:
         run: |
           set -e
           pick() { python3 -c "import sys,json;a=json.load(sys.stdin)['assets'];print(next(x['browser_download_url'] for x in a if $1))"; }
-          MK=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/3DSGuy/Project_CTR/releases/latest | pick "'ubuntu' in x['name'].lower() and 'x86_64' in x['name'].lower()")
+          python3 - <<'PY' > mkurl.txt
+          import json,urllib.request,os
+          req=urllib.request.Request('https://api.github.com/repos/3DSGuy/Project_CTR/releases?per_page=50',headers={'Authorization':'Bearer '+os.environ['GH_TOKEN']})
+          urls=[a['browser_download_url'] for r in json.load(urllib.request.urlopen(req)) for a in r['assets'] if 'ubuntu' in a['name'].lower() and 'x86_64' in a['name'].lower()]
+          old=[u for u in urls if 'v0.18' in u]
+          print((old or urls)[0])
+          PY
+          MK=$(cat mkurl.txt)
+          echo "makerom: $MK"
           curl -fsSL -o mk.zip "$MK" && unzip -o mk.zip -d mk
           sudo cp "$(find mk -name makerom -type f | head -1)" /usr/local/bin/makerom
           curl -fsSL -o bt.zip https://github.com/diasurgical/bannertool/releases/download/v1.2.0/bannertool.zip || curl -fsSL -o bt.zip "$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/diasurgical/bannertool/releases/latest | pick "x['name'].endswith('.zip')")"
@@ -90,7 +98,29 @@ jobs:
           mkdir -p build
           bannertool makebanner -i assets/banner.png -a assets/audio.wav -o build/banner.bnr
           bannertool makesmdh -s "Project Hollow" -l "Forsaken-like 3D survival game" -p "Hollow Dev" -i assets/icon.png -o build/icon.icn
-          makerom -f cia -o project_hollow.cia -elf project_hollow.elf -rsf cia.rsf -icon build/icon.icn -banner build/banner.bnr -exefslogo -target t
+          makerom -version || true
+          for i in 1 2 3 4 5 6 7 8 9 10; do
+            if makerom -f cia -o project_hollow.cia -elf project_hollow.elf -rsf cia.rsf -icon build/icon.icn -banner build/banner.bnr -exefslogo -target t > mk.log 2>&1; then cat mk.log; break; fi
+            cat mk.log
+            key=$(sed -n "s/.*Unrecognised key '\([^']*\)'.*/\1/p" mk.log | head -1)
+            [ -z "$key" ] && break
+            echo "Removing unsupported key $key from cia.rsf"
+            python3 - "$key" <<'PY'
+          import sys
+          k=sys.argv[1]
+          out=[];skip=None
+          for l in open('cia.rsf').read().split('\n'):
+              ind=len(l)-len(l.lstrip(' '))
+              if skip is not None:
+                  if l.strip()=='' or ind>skip: continue
+                  skip=None
+              if l.strip().startswith(k+':'):
+                  skip=ind
+                  continue
+              out.append(l)
+          open('cia.rsf','w').write('\n'.join(out))
+          PY
+          done
           ls -l project_hollow.cia
 
       - uses: actions/upload-artifact@v4
