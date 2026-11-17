@@ -22,7 +22,8 @@ jobs:
           done
           dkp-pacman -Q libctru citro2d citro3d
           apt-get update
-          apt-get install -y python3 curl unzip git 
+          apt-get install -y python3
+
       - name: Create placeholder icon, banner and banner audio (skipped if you add your own in assets/)
         run: |
           mkdir -p assets
@@ -50,24 +51,47 @@ jobs:
       - name: Build .3dsx
         run: make
 
-      - name: Download makerom and bannertool (prebuilt)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: built
+          path: |
+            project_hollow.elf
+            project_hollow.3dsx
+            cia.rsf
+            assets/icon.png
+            assets/banner.png
+            assets/audio.wav
+
+  cia:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: built
+          path: .
+
+      - name: Download makerom and bannertool
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -e
           pick() { python3 -c "import sys,json;a=json.load(sys.stdin)['assets'];print(next(x['browser_download_url'] for x in a if $1))"; }
           MK=$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/3DSGuy/Project_CTR/releases/latest | pick "'ubuntu' in x['name'].lower() and 'x86_64' in x['name'].lower()")
-          echo "makerom: $MK"
           curl -fsSL -o mk.zip "$MK" && unzip -o mk.zip -d mk
-          cp "$(find mk -name makerom -type f | head -1)" /usr/local/bin/makerom
+          sudo cp "$(find mk -name makerom -type f | head -1)" /usr/local/bin/makerom
           curl -fsSL -o bt.zip https://github.com/diasurgical/bannertool/releases/download/v1.2.0/bannertool.zip || curl -fsSL -o bt.zip "$(curl -fsSL -H "Authorization: Bearer $GH_TOKEN" https://api.github.com/repos/diasurgical/bannertool/releases/latest | pick "x['name'].endswith('.zip')")"
           unzip -o bt.zip -d bt
-          cp "$(find bt -path '*linux*' -name bannertool -type f | head -1)" /usr/local/bin/bannertool
-          chmod +x /usr/local/bin/makerom /usr/local/bin/bannertool
-          makerom -version || true
+          sudo cp "$(find bt -path '*linux*' -name bannertool -type f | head -1)" /usr/local/bin/bannertool
+          sudo chmod +x /usr/local/bin/makerom /usr/local/bin/bannertool
 
       - name: Build .cia
-        run: make cia
+        run: |
+          mkdir -p build
+          bannertool makebanner -i assets/banner.png -a assets/audio.wav -o build/banner.bnr
+          bannertool makesmdh -s "Project Hollow" -l "Forsaken-like 3D survival game" -p "Hollow Dev" -i assets/icon.png -o build/icon.icn
+          makerom -f cia -o project_hollow.cia -elf project_hollow.elf -rsf cia.rsf -icon build/icon.icn -banner build/banner.bnr -exefslogo -target t
+          ls -l project_hollow.cia
 
       - uses: actions/upload-artifact@v4
         with:
