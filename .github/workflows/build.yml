@@ -15,11 +15,14 @@ jobs:
 
       - name: Install 3DS libraries and helpers
         run: |
-          dkp-pacman -Syu --noconfirm || true
-          dkp-pacman -S --noconfirm 3ds-dev
+          for i in 1 2 3 4 5 6; do
+            dkp-pacman -Syu --noconfirm 3ds-dev && break
+            echo "devkitPro server refused, retry $i in 30s"
+            sleep 30
+          done
+          dkp-pacman -Q libctru citro2d citro3d
           apt-get update
-          apt-get install -y python3 curl unzip git
-
+          apt-get install -y python3 curl unzip git 
       - name: Create placeholder icon, banner and banner audio (skipped if you add your own in assets/)
         run: |
           mkdir -p assets
